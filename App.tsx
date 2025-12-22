@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import HomeScreen from './src/screens/HomeScreen';
 import Step1Screen from './src/screens/Step1Screen';
+import Step2Screen from './src/screens/Step2Screen';
 import type { RootStackParamList } from './src/types/navigation';
 
 SplashScreen.preventAutoHideAsync();
@@ -36,6 +37,7 @@ export default function App() {
       >
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Step1" component={Step1Screen} />
+        <Stack.Screen name="Step2" component={Step2Screen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

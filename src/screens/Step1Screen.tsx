@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Image, ImageBackground, StyleSheet, StatusBar, TouchableOpacity, Text, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,11 +15,22 @@ const styleOptions = [
 
 export default function Step1Screen() {
   const navigation = useNavigation<NavigationProp>();
+  const [selectedStyleId, setSelectedStyleId] = useState<number | null>(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
 
   const handleGoBack = () => {
     navigation.goBack();
+  };
+
+  const handleNext = () => {
+    if (selectedStyleId) {
+      navigation.navigate('Step2');
+    }
+  };
+
+  const handleStyleSelect = (styleId: number) => {
+    setSelectedStyleId(styleId);
   };
 
   const handlePressIn = () => {
@@ -89,21 +100,41 @@ export default function Step1Screen() {
         <Text style={styles.titleText}>어떤 여행 스타일을 좋아하시나요?</Text>
       </View>
       <View style={styles.gridContainer}>
-        {styleOptions.map((style) => (
-          <TouchableOpacity key={style.id} style={styles.styleCard} activeOpacity={0.9}>
-            <ImageBackground
-              source={style.image}
-              style={styles.styleCardImage}
-              imageStyle={styles.styleImageInner}
-              resizeMode="cover"
+        {styleOptions.map((style) => {
+          const isSelected = selectedStyleId === style.id;
+          return (
+            <TouchableOpacity
+              key={style.id}
+              style={[styles.styleCard, isSelected && styles.styleCardSelected]}
+              activeOpacity={0.9}
+              onPress={() => handleStyleSelect(style.id)}
             >
-              <View style={styles.styleTextOverlay}>
-                <Text style={styles.styleText}>{style.name}</Text>
-              </View>
-            </ImageBackground>
-          </TouchableOpacity>
-        ))}
+              <ImageBackground
+                source={style.image}
+                style={styles.styleCardImage}
+                imageStyle={styles.styleImageInner}
+                resizeMode="cover"
+              >
+                <View style={styles.styleTextOverlay}>
+                  <Text style={styles.styleText}>{style.name}</Text>
+                </View>
+                {isSelected && (
+                  <View style={styles.selectedIndicator}>
+                    <Text style={styles.selectedCheckmark}>✓</Text>
+                  </View>
+                )}
+              </ImageBackground>
+            </TouchableOpacity>
+          );
+        })}
       </View>
+      {selectedStyleId && (
+        <View style={styles.nextButtonContainer}>
+          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+            <Text style={styles.nextButtonText}>다음으로</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -193,6 +224,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4.65,
     elevation: 8,
   },
+  styleCardSelected: {
+    borderWidth: 4,
+    borderColor: '#D7E3A1',
+  },
   styleCardImage: {
     width: '100%',
     height: '100%',
@@ -219,5 +254,48 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#D7E3A1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  selectedCheckmark: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  nextButtonContainer: {
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+  },
+  nextButton: {
+    backgroundColor: '#D7E3A1',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+  nextButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Juache',
+    fontWeight: 'bold',
   },
 });
