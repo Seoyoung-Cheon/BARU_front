@@ -85,6 +85,9 @@ export default function Step1Screen() {
           resizeMode="contain"
         />
       </View>
+      <View style={styles.titleContainer}>
+        <Text style={styles.titleText}>어떤 여행 스타일을 좋아하시나요?</Text>
+      </View>
       <View style={styles.gridContainer}>
         {styleOptions.map((style) => (
           <TouchableOpacity key={style.id} style={styles.styleCard} activeOpacity={0.9}>
@@ -154,12 +157,25 @@ const styles = StyleSheet.create({
     width: 500,
     height: 200,
   },
+  titleContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingTop: -30,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  titleText: {
+    fontSize: 25,
+    fontFamily: 'Juache',
+    color: '#000000',
+    textAlign: 'center',
+  },
   gridContainer: {
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 10,
     justifyContent: 'space-between',
   },
   styleCard: {
@@ -180,24 +196,28 @@ const styles = StyleSheet.create({
   styleCardImage: {
     width: '100%',
     height: '100%',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   styleImageInner: {
     borderRadius: 12,
   },
   styleTextOverlay: {
     position: 'absolute',
+    top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-    paddingVertical: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(215, 227, 161, 0.7)',
   },
   styleText: {
-    color: '#000000',
-    fontSize: 18,
+    color: '#ffffff',
+    fontSize: 20,
     fontFamily: 'Juache',
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
 });
