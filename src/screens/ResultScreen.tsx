@@ -437,18 +437,51 @@ export default function ResultScreen() {
         }
 
         // 호텔 정보는 백엔드에서 제공되면 처리
-        // 현재는 hotels 배열이 비어있거나 정의되지 않았을 수 있음
-        if (tripData.hotels && tripData.hotels.length > 0) {
-          // 호텔 데이터 처리 (백엔드에서 제공되는 구조에 맞게 수정 필요)
+        // 백엔드에서 받은 호텔 데이터를 각 항공권에 매핑
+        if (tripData.hotels && Array.isArray(tripData.hotels) && tripData.hotels.length > 0) {
           console.log('호텔 데이터:', tripData.hotels);
+          
+          // 호텔 데이터를 항공권별로 매핑 (백엔드 구조에 맞게 수정 필요)
+          // 현재는 전체 호텔 데이터를 모든 항공권에 적용
+          sorted.forEach((flight) => {
+            const hotelList: HotelPrice[] = tripData.hotels.map((hotel: any) => ({
+              hotelName: hotel.hotelName || hotel.name || '호텔명 없음',
+              price: hotel.price || hotel.priceWon || 0,
+              currency: hotel.currency || 'KRW',
+              rating: hotel.rating || undefined,
+            }));
+            
+            if (hotelList.length > 0) {
+              setHotelPrices(prev => ({
+                ...prev,
+                [flight.id]: hotelList,
+              }));
+            }
+          });
+        } else {
+          console.log('호텔 데이터가 없습니다.');
         }
       } else {
         console.error('백엔드 여행 검색 실패:', response.error);
+        console.error('에러 메시지:', response.message);
         setFlightList([]);
+        
+        // 에러 알림 (선택사항)
+        if (response.message) {
+          console.warn('API 호출 실패:', response.message);
+        }
       }
     } catch (error) {
       console.error('Error fetching flight list:', error);
+      console.error('에러 상세:', error instanceof Error ? error.message : String(error));
       setFlightList([]);
+      
+      // 네트워크 오류 등 상세 로그
+      if (error instanceof Error) {
+        if (error.message.includes('Network request failed')) {
+          console.error('네트워크 연결 실패 - 백엔드 서버가 실행 중인지 확인하세요');
+        }
+      }
     } finally {
       setLoading(false);
     }

@@ -10,7 +10,7 @@ type IntroScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 export default function IntroScreen() {
   const navigation = useNavigation<IntroScreenNavigationProp>();
   
-  const player = useVideoPlayer(require('../../assets/Intro2.mp4'), (player) => {
+  const player = useVideoPlayer(require('../../assets/Intro (2).mp4'), (player) => {
     player.loop = false;
     player.play();
   });
@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   video: {
-    width: '100%',
-    height: '100%',
+    width: '150%',
+    height: '150%',
   },
 });
 

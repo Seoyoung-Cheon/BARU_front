@@ -13,7 +13,7 @@ const getBackendApiBaseUrl = () => {
   if (__DEV__) {
     if (Platform.OS === 'android') {
       // 실제 기기 사용 시 DEV_IP, 에뮬레이터 사용 시 10.0.2.2
-      return `http://${DEV_IP}:8080/api`;
+      return `http://10.0.2.2:8080/api`;
     } else {
       // iOS 시뮬레이터는 localhost 사용 가능, 실제 기기는 DEV_IP 사용
       return `http://${DEV_IP}:8080/api`;
