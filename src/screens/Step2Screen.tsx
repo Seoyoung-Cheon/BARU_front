@@ -498,7 +498,7 @@ export default function Step2Screen() {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>BARU 가기</Text>
+          <Text style={styles.nextButtonText}>랜덤여행 가기</Text>
         </TouchableOpacity>
       </View>
 
@@ -969,7 +969,8 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 14,
     fontFamily: 'Juache',
-    color: '#999999',
+    color: '#333333',
+    marginBottom: 10,
   },
   dropdownButton: {
     width: '100%',

@@ -21,6 +21,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function App() {
   const [fontsLoaded] = useFonts({
     'Juache': require('./assets/BMJUA_ttf.ttf'),
+    'Hakgyoansim': require('./assets/assets/fonts/Hakgyoansim_BoardmarkerR.ttf'),
   });
 
   useEffect(() => {

@@ -12,7 +12,8 @@
       "**/*"
     ],
     "fonts": [
-      "assets/BMJUA_ttf.ttf"
+      "assets/BMJUA_ttf.ttf",
+      "assets/assets/fonts/Hakgyoansim_BoardmarkerR.ttf"
     ],
     "ios": {
       "supportsTablet": true,
