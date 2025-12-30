@@ -16,6 +16,11 @@ type RouteProp = {
     departureDate?: Date;
     arrivalDate?: Date;
     isDomestic?: boolean;
+    departureAirport?: string;
+    returnAirport?: string;
+    departureStation?: string;
+    returnStation?: string;
+    transportType?: 'train' | 'flight';
   };
 };
 
@@ -108,8 +113,60 @@ export default function ResultScreen() {
     }
   }, [currentBudget, activeTab]); // budgetInput 대신 currentBudget 사용
 
+  // 시간 문자열을 분 단위로 변환하는 함수
+  const parseTimeToMinutes = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    
+    try {
+      // ISO 형식 (2024-12-25T14:30:00) 처리
+      if (timeStr.includes('T')) {
+        const date = new Date(timeStr);
+        if (!isNaN(date.getTime())) {
+          return date.getHours() * 60 + date.getMinutes();
+        }
+      }
+      
+      // YYYY-MM-DD HH:MM 형식 처리
+      if (timeStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)) {
+        const date = new Date(timeStr.replace(' ', 'T'));
+        if (!isNaN(date.getTime())) {
+          return date.getHours() * 60 + date.getMinutes();
+        }
+      }
+      
+      // MM/DD HH:MM 형식 처리 (formatDateTime 결과)
+      const mmddMatch = timeStr.match(/(\d{2})\/(\d{2}) (\d{2}):(\d{2})/);
+      if (mmddMatch) {
+        const hour = parseInt(mmddMatch[3], 10) || 0;
+        const minute = parseInt(mmddMatch[4], 10) || 0;
+        return hour * 60 + minute;
+      }
+      
+      // HH:MM 형식 처리
+      const hhmmMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+      if (hhmmMatch) {
+        let hour = parseInt(hhmmMatch[1], 10) || 0;
+        const minute = parseInt(hhmmMatch[2], 10) || 0;
+        
+        // 오전/오후 처리
+        if (timeStr.includes('오후') || timeStr.includes('PM')) {
+          if (hour !== 12) hour = hour + 12;
+        } else if (timeStr.includes('오전') || timeStr.includes('AM')) {
+          if (hour === 12) hour = 0;
+        }
+        
+        return hour * 60 + minute;
+      }
+      
+      return 0;
+    } catch (error) {
+      console.error('시간 파싱 오류:', error, timeStr);
+      return 0;
+    }
+  };
+
   useEffect(() => {
-    // 정렬 적용
+    // 정렬 적용 (sortBy나 sortOrder가 변경될 때만)
     if (activeTab === 'flights' && flightList.length > 0) {
       console.log('정렬 적용:', { sortBy, sortOrder, flightListLength: flightList.length });
       const sorted = [...flightList].sort((a, b) => {
@@ -124,55 +181,42 @@ export default function ResultScreen() {
           const timeB = b.departure.time || '';
           if (!timeA || !timeB) return 0;
           
-          // 시간 문자열 파싱 (오전/오후 제거, HH:MM 형식으로 변환)
-          const parseTime = (timeStr: string): number => {
-            // "오전 09:00" 또는 "09:00" 형식 처리
-            const cleaned = timeStr.replace(/오전|오후|AM|PM/gi, '').trim();
-            const parts = cleaned.split(':');
-            if (parts.length !== 2) return 0;
-            const hour = parseInt(parts[0], 10) || 0;
-            const minute = parseInt(parts[1], 10) || 0;
-            // 오후 시간 처리 (12시 이후)
-            let totalHour = hour;
-            if (timeStr.includes('오후') || timeStr.includes('PM')) {
-              if (hour !== 12) totalHour = hour + 12;
-            } else if (timeStr.includes('오전') || timeStr.includes('AM')) {
-              if (hour === 12) totalHour = 0;
-            }
-            return totalHour * 60 + minute;
-          };
+          const totalMinutesA = parseTimeToMinutes(timeA);
+          const totalMinutesB = parseTimeToMinutes(timeB);
           
-          const totalMinutesA = parseTime(timeA);
-          const totalMinutesB = parseTime(timeB);
+          console.log('시간 정렬:', {
+            timeA,
+            timeB,
+            minutesA: totalMinutesA,
+            minutesB: totalMinutesB,
+            sortOrder,
+          });
+          
           return sortOrder === 'asc' ? totalMinutesA - totalMinutesB : totalMinutesB - totalMinutesA;
         }
       });
-      // 무한 루프 방지를 위해 값이 실제로 변경되었을 때만 업데이트
-      let shouldUpdate = false;
-      if (sortBy === 'price') {
-        const currentFirstPrice = parseFloat(flightList[0]?.price.total || '0');
-        const sortedFirstPrice = parseFloat(sorted[0]?.price.total || '0');
-        shouldUpdate = currentFirstPrice !== sortedFirstPrice || flightList.length !== sorted.length;
-      } else {
-        // 출발시간 기준 정렬
-        const currentFirstTime = flightList[0]?.departure.time || '';
-        const sortedFirstTime = sorted[0]?.departure.time || '';
-        shouldUpdate = currentFirstTime !== sortedFirstTime || flightList.length !== sorted.length;
-      }
-      if (shouldUpdate) {
+      
+      // 정렬된 결과를 업데이트 (무한 루프 방지를 위해 JSON 비교)
+      const currentListStr = JSON.stringify(flightList.map(f => ({ id: f.id, time: f.departure.time, price: f.price.total })));
+      const sortedListStr = JSON.stringify(sorted.map(f => ({ id: f.id, time: f.departure.time, price: f.price.total })));
+      
+      if (currentListStr !== sortedListStr) {
         setFlightList(sorted);
       }
     } else if (activeTab === 'hotels' && travelList.length > 0) {
       const sorted = [...travelList].sort((a, b) => {
         return sortOrder === 'asc' ? a.price - b.price : b.price - a.price;
       });
-      const currentFirstPrice = travelList[0]?.price || 0;
-      const sortedFirstPrice = sorted[0]?.price || 0;
-      if (currentFirstPrice !== sortedFirstPrice || travelList.length !== sorted.length) {
-        setTravelList(sorted);
-      }
+      setTravelList(sorted);
     }
   }, [sortOrder, sortBy, activeTab]);
+
+  // 공항 이름에서 코드 추출 (예: "인천(ICN)" -> "ICN")
+  const extractAirportCode = (airportName: string): string => {
+    if (!airportName) return '';
+    const match = airportName.match(/\(([A-Z]{3})\)/);
+    return match ? match[1] : airportName;
+  };
 
   const fetchFlightList = async () => {
     try {
@@ -182,10 +226,30 @@ export default function ResultScreen() {
       const arrivalDate = route.params?.arrivalDate;
       const peopleCount = route.params?.peopleCount || '1명';
       const people = parseInt(peopleCount.replace('명', '')) || 1;
+      const departureAirport = route.params?.departureAirport;
+      const returnAirport = route.params?.returnAirport;
+      const isDomestic = route.params?.isDomestic ?? false;
+      const transportType = route.params?.transportType;
+
+      // 기차는 아직 API가 없으므로 스킵
+      if (isDomestic && transportType === 'train') {
+        console.log('기차 API는 아직 준비되지 않았습니다.');
+        setLoading(false);
+        setFlightList([]);
+        return;
+      }
 
       if (!departureDate || !arrivalDate) {
         console.error('출발일자 또는 도착일자가 없습니다.');
         setLoading(false);
+        return;
+      }
+
+      // 출발/귀국 공항이 없으면 에러
+      if (!departureAirport || !returnAirport) {
+        console.error('출발 공항 또는 귀국 공항이 없습니다.');
+        setLoading(false);
+        setFlightList([]);
         return;
       }
 
@@ -215,22 +279,30 @@ export default function ResultScreen() {
 
       const budgetWon = budgetValue * 10000; // 만원을 원으로 변환
 
+      // 공항 코드 추출
+      const departureAirportCode = extractAirportCode(departureAirport);
+      const returnAirportCode = extractAirportCode(returnAirport);
+
+      console.log('출발 공항:', departureAirport, '->', departureAirportCode);
+      console.log('귀국 공항:', returnAirport, '->', returnAirportCode);
+
       // 백엔드 통합 API 호출
-      // 백엔드는 영어 지역 코드를 기대하므로 변환
-      // 국내는 null로 전달하여 백엔드가 기본값 처리하도록 함
-      const preferredRegion = route.params?.isDomestic 
-        ? null // 국내는 백엔드에서 기본값 처리
-        : 'JAPAN'; // 국외는 일본으로 기본 설정 (실제로는 사용자 선택에 따라 변경 가능)
-      
+      // 출발/귀국 공항이 지정된 경우 해당 경로의 항공권만 검색
       const searchParams: TripSearchRequest = {
         budgetWon,
         people,
         departDate: formatDate(departureDate),
         returnDate: formatDate(arrivalDate),
-        preferredRegion: preferredRegion || undefined,
+        originLocationCode: departureAirportCode,
+        destinationLocationCode: returnAirportCode,
       };
 
       console.log('백엔드 API 호출 시작:', searchParams);
+      console.log('예산:', budgetWon.toLocaleString(), '원');
+      console.log('인원수:', people, '명');
+      console.log('1인당 예산:', Math.floor(budgetWon / people).toLocaleString(), '원');
+      console.log('출발 공항 코드:', departureAirportCode);
+      console.log('귀국 공항 코드:', returnAirportCode);
       const response = await searchTrip(searchParams);
 
       console.log('백엔드 여행 검색 응답 전체:', JSON.stringify(response, null, 2));
@@ -251,6 +323,14 @@ export default function ResultScreen() {
         const flightDataArray = tripData.flights || [];
         console.log('항공권 데이터 배열:', flightDataArray);
         console.log('항공권 개수:', flightDataArray.length);
+        
+        // 도착 공항별 통계 확인 (도쿄행만 나오는 문제 디버깅)
+        const arrivalAirportStats: { [key: string]: number } = {};
+        flightDataArray.forEach((flight: any) => {
+          const airport = flight.arrivalAirport || 'UNKNOWN';
+          arrivalAirportStats[airport] = (arrivalAirportStats[airport] || 0) + 1;
+        });
+        console.log('도착 공항별 항공권 개수:', arrivalAirportStats);
         
         if (flightDataArray.length === 0) {
           console.warn('⚠️ 백엔드에서 항공권 데이터가 비어있습니다!');
@@ -356,9 +436,30 @@ export default function ResultScreen() {
           price: f.price.total,
         })));
 
-        // 백엔드에서 이미 필터링된 데이터이므로, 완전히 동일한 항공권만 제거
+        // 인원수 기반 가격 필터링
+        // 예산은 총 금액이므로, 1인당 예산 = 예산 / 인원수
+        // 백엔드에서 priceWon은 1인당 가격으로 반환되므로, 1인당 가격 <= 1인당 예산
+        const budgetPerPerson = Math.floor(budgetWon / people);
+        console.log(`필터링 조건: 총 예산 ${budgetWon.toLocaleString()}원, 인원 ${people}명, 1인당 예산 ${budgetPerPerson.toLocaleString()}원`);
+        
+        const budgetFilteredFlights = allFlights.filter((flight) => {
+          const pricePerPerson = parseFloat(flight.price.total) || 0;
+          const isWithinBudget = pricePerPerson <= budgetPerPerson;
+          
+          if (!isWithinBudget) {
+            console.log(`❌ 필터링됨: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원 > 1인당 예산: ${budgetPerPerson.toLocaleString()}원`);
+          } else {
+            console.log(`✅ 통과: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원 <= 1인당 예산: ${budgetPerPerson.toLocaleString()}원`);
+          }
+          
+          return isWithinBudget;
+        });
+        
+        console.log(`인원수 기반 필터링 결과: 전체 ${allFlights.length}개 -> 예산 내 ${budgetFilteredFlights.length}개`);
+        
+        // 완전히 동일한 항공권만 제거
         // (편명, 출발/도착 공항, 출발 시간, 가격이 모두 동일한 경우만)
-        const uniqueFlights = allFlights.filter((flight, index, self) => {
+        const uniqueFlights = budgetFilteredFlights.filter((flight, index, self) => {
           const uniqueKey = `${flight.airline}-${flight.departure.airport}-${flight.arrival.airport}-${flight.departure.time}-${flight.price.total}-${flight.segments[0]?.flightNumber || ''}`;
           return index === self.findIndex(f => {
             const fKey = `${f.airline}-${f.departure.airport}-${f.arrival.airport}-${f.departure.time}-${f.price.total}-${f.segments[0]?.flightNumber || ''}`;
@@ -385,23 +486,8 @@ export default function ResultScreen() {
             const timeB = b.departure.time || '';
             if (!timeA || !timeB) return 0;
             
-            const parseTime = (timeStr: string): number => {
-              const cleaned = timeStr.replace(/오전|오후|AM|PM/gi, '').trim();
-              const parts = cleaned.split(':');
-              if (parts.length !== 2) return 0;
-              const hour = parseInt(parts[0], 10) || 0;
-              const minute = parseInt(parts[1], 10) || 0;
-              let totalHour = hour;
-              if (timeStr.includes('오후') || timeStr.includes('PM')) {
-                if (hour !== 12) totalHour = hour + 12;
-              } else if (timeStr.includes('오전') || timeStr.includes('AM')) {
-                if (hour === 12) totalHour = 0;
-              }
-              return totalHour * 60 + minute;
-            };
-            
-            const totalMinutesA = parseTime(timeA);
-            const totalMinutesB = parseTime(timeB);
+            const totalMinutesA = parseTimeToMinutes(timeA);
+            const totalMinutesB = parseTimeToMinutes(timeB);
             return sortOrder === 'asc' ? totalMinutesA - totalMinutesB : totalMinutesB - totalMinutesA;
           }
         });
@@ -571,6 +657,66 @@ export default function ResultScreen() {
       return `${minutes}분`;
     }
     return duration;
+  };
+
+  const formatDateTime = (dateTimeStr: string): string => {
+    if (!dateTimeStr) return 'N/A';
+    
+    try {
+      // 다양한 날짜 형식 처리
+      let date: Date;
+      
+      // ISO 형식 (2024-12-25T14:30:00 또는 2024-12-25T14:30:00Z)
+      if (dateTimeStr.includes('T')) {
+        date = new Date(dateTimeStr);
+      }
+      // YYYY-MM-DD HH:MM 형식
+      else if (dateTimeStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)) {
+        date = new Date(dateTimeStr.replace(' ', 'T'));
+      }
+      // YYYY-MM-DD 형식
+      else if (dateTimeStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        date = new Date(dateTimeStr);
+      }
+      // 이미 시간만 있는 경우 (HH:MM 형식)
+      else if (dateTimeStr.match(/^\d{2}:\d{2}/)) {
+        return dateTimeStr;
+      }
+      else {
+        date = new Date(dateTimeStr);
+      }
+      
+      // 유효한 날짜인지 확인
+      if (isNaN(date.getTime())) {
+        return dateTimeStr;
+      }
+      
+      // 월일 시간 형식으로 변환 (MM/DD HH:MM, 24시간제)
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${month}/${day} ${hours}:${minutes}`;
+    } catch (error) {
+      console.error('날짜 포맷팅 오류:', error, dateTimeStr);
+      return dateTimeStr;
+    }
+  };
+
+  const formatExchangeAmount = (amount: number, currency: string): string => {
+    if (!amount || isNaN(amount)) return '0';
+    
+    // JPY는 소수점 없이 표시
+    if (currency === 'JPY') {
+      return Math.round(amount).toLocaleString('ko-KR');
+    }
+    
+    // USD 등은 소수점 2자리까지 표시
+    return amount.toLocaleString('ko-KR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
   };
 
   const getCityName = (airportCode: string, destinationName?: string): string => {
@@ -821,7 +967,7 @@ export default function ResultScreen() {
                   
                   // 환전가능 금액
                   const exchangeText = exchange 
-                    ? `${exchange.amount.toLocaleString()} ${exchange.currency}`
+                    ? `${formatExchangeAmount(exchange.amount, exchange.currency)} ${exchange.currency}`
                     : '정보 없음';
                   
                   return (
@@ -865,7 +1011,7 @@ export default function ResultScreen() {
                         <Text style={[styles.listRowText, { flex: 0 }]}>비행기값</Text>
                         <View style={[styles.timeContainer, { flex: 1 }]}>
                           <Text style={styles.timeText}>
-                            {flight.departure.time || 'N/A'}
+                            {formatDateTime(flight.departure.time)}
                           </Text>
                           <Image
                             source={require('../../assets/arrows-slim-right.png')}
@@ -873,7 +1019,7 @@ export default function ResultScreen() {
                             resizeMode="contain"
                           />
                           <Text style={styles.timeText}>
-                            {flight.arrival.time || 'N/A'}
+                            {formatDateTime(flight.arrival.time)}
                           </Text>
                         </View>
                         <Text style={[styles.listRowValue, { flex: 0 }]}>{flightPriceText}</Text>
@@ -1314,7 +1460,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   flightAirlineLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: 'Juache',
     color: '#666666',
   },

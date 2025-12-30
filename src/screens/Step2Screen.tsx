@@ -1,13 +1,40 @@
 import React, { useRef, useState } from 'react';
 import { View, Image, StyleSheet, StatusBar, Text, TouchableOpacity, Animated, TextInput, ScrollView, Modal, Platform } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type RouteProp = {
+  key: string;
+  name: 'Step2';
+  params: {
+    isDomestic?: boolean;
+  };
+};
+
+// 국내 공항 목록 (해외 항공권도 출발/귀국은 국내 공항만 사용)
+const domesticAirports = [
+  { code: 'ICN', name: '인천(ICN)' },
+  { code: 'GMP', name: '김포(GMP)' },
+  { code: 'CJU', name: '제주(CJU)' },
+  { code: 'PUS', name: '부산(PUS)' },
+];
+
+// 국내 기차역 목록
+const domesticStations = [
+  { code: 'SEOUL', name: '서울' },
+  { code: 'BUSAN', name: '부산' },
+  { code: 'DAEGU', name: '대구' },
+  { code: 'GWANGJU', name: '광주' },
+  { code: 'DAEJEON', name: '대전' },
+  { code: 'INCHEON', name: '인천' },
+  { code: 'JEJU', name: '제주' },
+];
 
 export default function Step2Screen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProp>();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
   const [budget, setBudget] = useState('');
@@ -16,10 +43,23 @@ export default function Step2Screen() {
   const [arrivalDate, setArrivalDate] = useState<Date | null>(null);
   const [showDeparturePicker, setShowDeparturePicker] = useState(false);
   const [showArrivalPicker, setShowArrivalPicker] = useState(false);
-  const [isDomestic, setIsDomestic] = useState<boolean>(true); // 국내/국외 토글 (기본값: 국내)
+  const isDomestic = route.params?.isDomestic ?? true;
   const [showPeopleModal, setShowPeopleModal] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [validationMessage, setValidationMessage] = useState('');
+  
+  // 해외: 출발/귀국 공항
+  const [departureAirport, setDepartureAirport] = useState('출발 공항');
+  const [returnAirport, setReturnAirport] = useState('귀국 공항');
+  const [showDepartureAirportModal, setShowDepartureAirportModal] = useState(false);
+  const [showReturnAirportModal, setShowReturnAirportModal] = useState(false);
+  
+  // 국내: 기차/비행기 선택
+  const [transportType, setTransportType] = useState<'train' | 'flight' | null>(null);
+  const [departureStation, setDepartureStation] = useState('출발역');
+  const [returnStation, setReturnStation] = useState('복귀역');
+  const [showDepartureStationModal, setShowDepartureStationModal] = useState(false);
+  const [showReturnStationModal, setShowReturnStationModal] = useState(false);
 
   const peopleOptions = ['1명', '2명', '3명', '4명', '5명', '6명','7명','8명','9명','10명'];
 
@@ -77,6 +117,28 @@ export default function Step2Screen() {
       missingFields.push('도착일자');
     }
     
+    // 해외인 경우 출발/귀국 공항 검증
+    if (!isDomestic) {
+      if (departureAirport === '출발 공항') {
+        missingFields.push('출발 공항');
+      }
+      if (returnAirport === '귀국 공항') {
+        missingFields.push('귀국 공항');
+      }
+    } else {
+      // 국내인 경우 기차/비행기 선택 및 출발/도착 검증
+      if (!transportType) {
+        missingFields.push('교통수단 선택');
+      } else {
+        if (departureStation === '출발역' || departureStation === '출발 공항') {
+          missingFields.push(transportType === 'train' ? '출발역' : '출발 공항');
+        }
+        if (returnStation === '귀국역' || returnStation === '귀국 공항') {
+          missingFields.push(transportType === 'train' ? '복귀역' : '귀국 공항');
+        }
+      }
+    }
+    
     // 필수값이 하나라도 없으면 모달 표시
     if (missingFields.length > 0) {
       setValidationMessage(`다음 항목을 입력해주세요:\n${missingFields.join(', ')}`);
@@ -85,13 +147,19 @@ export default function Step2Screen() {
     }
     
     // 모든 필수값이 입력되었으면 결과 화면으로 이동
-    navigation.navigate('Result', {
+    const resultParams: RootStackParamList['Result'] = {
       budget: budget,
       peopleCount: peopleCount,
       departureDate: departureDate || undefined,
       arrivalDate: arrivalDate || undefined,
       isDomestic: isDomestic,
-    });
+      departureAirport: !isDomestic ? departureAirport : (transportType === 'flight' ? departureStation : undefined),
+      returnAirport: !isDomestic ? returnAirport : (transportType === 'flight' ? returnStation : undefined),
+      departureStation: isDomestic && transportType === 'train' ? departureStation : undefined,
+      returnStation: isDomestic && transportType === 'train' ? returnStation : undefined,
+      transportType: isDomestic ? (transportType || undefined) : undefined,
+    };
+    navigation.navigate('Result', resultParams);
   };
 
   const formatDate = (date: Date): string => {
@@ -312,27 +380,120 @@ export default function Step2Screen() {
           </View>
         </View>
 
-        <View style={styles.sectionContainer}>
-          <Text style={styles.labelText}>여행 지역</Text>
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity
-              style={[styles.toggleButton, isDomestic && styles.toggleButtonActive]}
-              onPress={() => setIsDomestic(true)}
-            >
-              <Text style={[styles.toggleButtonText, isDomestic && styles.toggleButtonTextActive]}>
-                국내
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleButton, !isDomestic && styles.toggleButtonActive]}
-              onPress={() => setIsDomestic(false)}
-            >
-              <Text style={[styles.toggleButtonText, !isDomestic && styles.toggleButtonTextActive]}>
-                국외
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {!isDomestic ? (
+          // 해외: 출발/귀국 공항
+          <>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.labelText}>출발 공항</Text>
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => setShowDepartureAirportModal(true)}
+              >
+                <Text style={[styles.dropdownText, departureAirport === '출발 공항' && styles.placeholderText]}>
+                  {departureAirport}
+                </Text>
+                <Text style={styles.dropdownIcon}>▼</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.sectionContainer}>
+              <View style={styles.labelRow}>
+                <Text style={styles.labelText}>귀국 공항</Text>
+                <Text style={styles.helperText}>돌아올 때 도착할 공항</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => setShowReturnAirportModal(true)}
+              >
+                <Text style={[styles.dropdownText, returnAirport === '귀국 공항' && styles.placeholderText]}>
+                  {returnAirport}
+                </Text>
+                <Text style={styles.dropdownIcon}>▼</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          // 국내: 기차/비행기 선택
+          <>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.labelText}>교통수단</Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[styles.toggleButton, transportType === 'train' && styles.toggleButtonActive]}
+                  onPress={() => {
+                    setTransportType('train');
+                    setDepartureStation('출발역');
+                    setReturnStation('복귀역');
+                  }}
+                >
+                  <Text style={[styles.toggleButtonText, transportType === 'train' && styles.toggleButtonTextActive]}>
+                    기차
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleButton, transportType === 'flight' && styles.toggleButtonActive]}
+                  onPress={() => {
+                    setTransportType('flight');
+                    setDepartureStation('출발 공항');
+                    setReturnStation('귀국 공항');
+                  }}
+                >
+                  <Text style={[styles.toggleButtonText, transportType === 'flight' && styles.toggleButtonTextActive]}>
+                    비행기
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {transportType && (
+              <>
+                <View style={styles.sectionContainer}>
+                  <Text style={styles.labelText}>
+                    {transportType === 'train' ? '출발역' : '출발 공항'}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.dropdownButton}
+                    onPress={() => {
+                      if (transportType === 'train') {
+                        setShowDepartureStationModal(true);
+                      } else {
+                        setShowDepartureAirportModal(true);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.dropdownText, (departureStation === '출발역' || departureStation === '출발 공항') && styles.placeholderText]}>
+                      {departureStation}
+                    </Text>
+                    <Text style={styles.dropdownIcon}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.sectionContainer}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelText}>
+                      {transportType === 'train' ? '복귀역' : '귀국 공항'}
+                    </Text>
+                    <Text style={styles.helperText}>
+                      {transportType === 'train' ? '돌아올 때 도착할 역' : '돌아올 때 도착할 공항'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.dropdownButton}
+                    onPress={() => {
+                      if (transportType === 'train') {
+                        setShowReturnStationModal(true);
+                      } else {
+                        setShowReturnAirportModal(true);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.dropdownText, (returnStation === '복귀역' || returnStation === '귀국 공항') && styles.placeholderText]}>
+                      {returnStation}
+                    </Text>
+                    <Text style={styles.dropdownIcon}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </>
+        )}
       </ScrollView>
 
       <View style={styles.buttonContainer}>
@@ -559,6 +720,130 @@ export default function Step2Screen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* 해외 출발 공항 선택 모달 */}
+      <Modal
+        visible={showDepartureAirportModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDepartureAirportModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDepartureAirportModal(false)}
+        >
+          <View style={styles.modalContent}>
+            {domesticAirports.map((airport) => (
+              <TouchableOpacity
+                key={airport.code}
+                style={styles.modalOption}
+                onPress={() => {
+                  if (isDomestic && transportType === 'flight') {
+                    setDepartureStation(airport.name);
+                  } else {
+                    setDepartureAirport(airport.name);
+                  }
+                  setShowDepartureAirportModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{airport.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 해외 귀국 공항 선택 모달 */}
+      <Modal
+        visible={showReturnAirportModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowReturnAirportModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowReturnAirportModal(false)}
+        >
+          <View style={styles.modalContent}>
+            {domesticAirports.map((airport) => (
+              <TouchableOpacity
+                key={airport.code}
+                style={styles.modalOption}
+                onPress={() => {
+                  if (isDomestic && transportType === 'flight') {
+                    setReturnStation(airport.name);
+                  } else {
+                    setReturnAirport(airport.name);
+                  }
+                  setShowReturnAirportModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{airport.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 국내 출발역 선택 모달 */}
+      <Modal
+        visible={showDepartureStationModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDepartureStationModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDepartureStationModal(false)}
+        >
+          <View style={styles.modalContent}>
+            {domesticStations.map((station) => (
+              <TouchableOpacity
+                key={station.code}
+                style={styles.modalOption}
+                onPress={() => {
+                  setDepartureStation(station.name);
+                  setShowDepartureStationModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{station.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 국내 복귀역 선택 모달 */}
+      <Modal
+        visible={showReturnStationModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowReturnStationModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowReturnStationModal(false)}
+        >
+          <View style={styles.modalContent}>
+            {domesticStations.map((station) => (
+              <TouchableOpacity
+                key={station.code}
+                style={styles.modalOption}
+                onPress={() => {
+                  setReturnStation(station.name);
+                  setShowReturnStationModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{station.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -674,6 +959,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Juache',
     color: '#333333',
     marginBottom: 8,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 14,
+    fontFamily: 'Juache',
+    color: '#999999',
   },
   dropdownButton: {
     width: '100%',

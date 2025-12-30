@@ -348,6 +348,8 @@ export interface TripSearchRequest {
   departDate: string; // 출발일 (YYYY-MM-DD)
   returnDate: string; // 귀국일 (YYYY-MM-DD)
   preferredRegion?: string; // 선호 지역 (선택사항)
+  originLocationCode?: string; // 출발 공항 코드 (선택사항)
+  destinationLocationCode?: string; // 도착 공항 코드 (선택사항)
 }
 
 // 백엔드 여행 검색 응답 타입

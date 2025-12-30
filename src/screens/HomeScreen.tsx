@@ -12,7 +12,7 @@ export default function HomeScreen() {
   const { isLoggedIn } = useAuth();
 
   const handlePress = () => {
-    navigation.navigate('Step2');
+    navigation.navigate('Step1');
   };
 
   const handleMyPagePress = () => {
