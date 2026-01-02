@@ -218,6 +218,31 @@ export default function ResultScreen() {
     return match ? match[1] : airportName;
   };
 
+  // 예산 범위 파싱 (예: "40-50만원" -> { min: 40, max: 50 }, "100만원 이상" -> { min: 100, max: Infinity })
+  const parseBudgetRange = (budgetStr: string): { min: number; max: number } => {
+    if (!budgetStr || budgetStr === '나의 예산') {
+      return { min: 0, max: 0 };
+    }
+
+    // "100만원 이상" 형식 처리
+    if (budgetStr.includes('이상')) {
+      const minValue = parseInt(budgetStr.replace(/[^0-9]/g, '')) || 0;
+      return { min: minValue, max: Infinity };
+    }
+
+    // "40-50만원" 형식 처리
+    const rangeMatch = budgetStr.match(/(\d+)-(\d+)/);
+    if (rangeMatch) {
+      const min = parseInt(rangeMatch[1]) || 0;
+      const max = parseInt(rangeMatch[2]) || 0;
+      return { min, max };
+    }
+
+    // 단일 숫자 형식 처리 (기존 호환성)
+    const singleValue = parseInt(budgetStr.replace(/[^0-9]/g, '')) || 0;
+    return { min: singleValue, max: singleValue };
+  };
+
   const fetchFlightList = async () => {
     try {
       setLoading(true);
@@ -262,22 +287,34 @@ export default function ResultScreen() {
       };
 
       // 예산을 원 단위로 변환 (만원 단위를 원 단위로) - 필수값
-      if (!currentBudget || currentBudget.trim() === '') {
+      if (!currentBudget || currentBudget.trim() === '' || currentBudget === '나의 예산') {
         console.error('예산이 입력되지 않았습니다.');
         setLoading(false);
         setFlightList([]);
         return;
       }
 
-      const budgetValue = parseInt(currentBudget.replace(/[^0-9]/g, '')) || 0;
-      if (budgetValue <= 0) {
+      // 예산 범위 파싱
+      const budgetRange = parseBudgetRange(currentBudget);
+      if (budgetRange.min <= 0 && budgetRange.max <= 0) {
         console.error('유효한 예산을 입력해주세요.');
         setLoading(false);
         setFlightList([]);
         return;
       }
 
-      const budgetWon = budgetValue * 10000; // 만원을 원으로 변환
+      // API 호출 시 최대 예산 사용 (백엔드에 전달)
+      const budgetWon = budgetRange.max === Infinity 
+        ? budgetRange.min * 10000 
+        : budgetRange.max * 10000; // 만원을 원으로 변환
+      
+      // 필터링 시 사용할 최소/최대 예산 (원 단위)
+      const budgetMinWon = budgetRange.min * 10000;
+      const budgetMaxWon = budgetRange.max === Infinity ? Infinity : budgetRange.max * 10000;
+      
+      // 인원수 기반 1인당 예산 범위 계산 (필터링에 사용)
+      const budgetMinPerPerson = Math.floor(budgetMinWon / people);
+      const budgetMaxPerPerson = budgetMaxWon === Infinity ? Infinity : Math.floor(budgetMaxWon / people);
 
       // 공항 코드 추출
       const departureAirportCode = extractAirportCode(departureAirport);
@@ -298,9 +335,12 @@ export default function ResultScreen() {
       };
 
       console.log('백엔드 API 호출 시작:', searchParams);
-      console.log('예산:', budgetWon.toLocaleString(), '원');
+      console.log('예산 범위:', `${budgetRange.min}-${budgetRange.max === Infinity ? '∞' : budgetRange.max}만원`);
+      console.log('예산 (최대값, API 전달용):', budgetWon.toLocaleString(), '원');
+      console.log('예산 (최소값):', budgetMinWon.toLocaleString(), '원');
+      console.log('예산 (최대값):', budgetMaxWon === Infinity ? '무제한' : budgetMaxWon.toLocaleString() + '원');
       console.log('인원수:', people, '명');
-      console.log('1인당 예산:', Math.floor(budgetWon / people).toLocaleString(), '원');
+      console.log('1인당 예산 범위:', `${budgetMinPerPerson.toLocaleString()}원 ~ ${budgetMaxPerPerson === Infinity ? '∞' : budgetMaxPerPerson.toLocaleString()}원`);
       console.log('출발 공항 코드:', departureAirportCode);
       console.log('귀국 공항 코드:', returnAirportCode);
       const response = await searchTrip(searchParams);
@@ -437,19 +477,22 @@ export default function ResultScreen() {
         })));
 
         // 인원수 기반 가격 필터링
-        // 예산은 총 금액이므로, 1인당 예산 = 예산 / 인원수
-        // 백엔드에서 priceWon은 1인당 가격으로 반환되므로, 1인당 가격 <= 1인당 예산
-        const budgetPerPerson = Math.floor(budgetWon / people);
-        console.log(`필터링 조건: 총 예산 ${budgetWon.toLocaleString()}원, 인원 ${people}명, 1인당 예산 ${budgetPerPerson.toLocaleString()}원`);
+        // 예산 범위를 고려하여 필터링
+        // 백엔드에서 priceWon은 1인당 가격으로 반환되므로, 1인당 가격이 예산 범위 내에 있어야 함
+        // budgetMinPerPerson과 budgetMaxPerPerson은 이미 위에서 계산됨
+        
+        console.log(`필터링 조건: 예산 범위 ${budgetRange.min}-${budgetRange.max === Infinity ? '∞' : budgetRange.max}만원, 인원 ${people}명`);
+        console.log(`1인당 예산 범위: ${budgetMinPerPerson.toLocaleString()}원 ~ ${budgetMaxPerPerson === Infinity ? '∞' : budgetMaxPerPerson.toLocaleString()}원`);
         
         const budgetFilteredFlights = allFlights.filter((flight) => {
           const pricePerPerson = parseFloat(flight.price.total) || 0;
-          const isWithinBudget = pricePerPerson <= budgetPerPerson;
+          const isWithinBudget = pricePerPerson >= budgetMinPerPerson && 
+                                 (budgetMaxPerPerson === Infinity || pricePerPerson <= budgetMaxPerPerson);
           
           if (!isWithinBudget) {
-            console.log(`❌ 필터링됨: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원 > 1인당 예산: ${budgetPerPerson.toLocaleString()}원`);
+            console.log(`❌ 필터링됨: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원 (범위: ${budgetMinPerPerson.toLocaleString()}원 ~ ${budgetMaxPerPerson === Infinity ? '∞' : budgetMaxPerPerson.toLocaleString()}원)`);
           } else {
-            console.log(`✅ 통과: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원 <= 1인당 예산: ${budgetPerPerson.toLocaleString()}원`);
+            console.log(`✅ 통과: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원`);
           }
           
           return isWithinBudget;
@@ -691,6 +734,7 @@ export default function ResultScreen() {
         return dateTimeStr;
       }
       
+      //백엔드에서 바꾸면 프론트도 바꿔야함 -HH:MM으로)
       // 월일 시간 형식으로 변환 (MM/DD HH:MM, 24시간제)
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -743,6 +787,8 @@ export default function ResultScreen() {
       'XIY': { korean: '시안', english: 'Xi\'an' },
       'TAO': { korean: '칭다오', english: 'Qingdao' },
       'DLC': { korean: '다롄', english: 'Dalian' },
+      'CGO': { korean: '정저우', english: 'Zhengzhou' },
+      'CGQ': { korean: '창춘 룽자', english: 'Changchun Longjia' },
       // 태국
       'BKK': { korean: '방콕', english: 'Bangkok' },
       'DMK': { korean: '방콕', english: 'Bangkok' },
@@ -759,6 +805,7 @@ export default function ResultScreen() {
       'SIN': { korean: '싱가포르', english: 'Singapore' },
       // 말레이시아
       'KUL': { korean: '쿠알라룸푸르', english: 'Kuala Lumpur' },
+      'BKI': {korean: '코타키나발루', english: 'Kota Kinabalu'},
       // 인도네시아
       'CGK': { korean: '자카르타', english: 'Jakarta' },
       'DPS': { korean: '발리', english: 'Bali' },
@@ -906,7 +953,19 @@ export default function ResultScreen() {
             style={styles.searchButton}
             onPress={() => {
               if (budgetInput && budgetInput.trim() !== '') {
-                setCurrentBudget(budgetInput);
+                // 재검색 시에도 범위 형식 지원 (예: "40-50" 또는 "40-50만원")
+                let budgetValue = budgetInput.trim();
+                // "만원"이 없으면 추가
+                if (!budgetValue.includes('만원')) {
+                  // 범위 형식인지 확인
+                  if (budgetValue.includes('-')) {
+                    budgetValue = budgetValue + '만원';
+                  } else {
+                    // 단일 숫자인 경우
+                    budgetValue = budgetValue + '만원';
+                  }
+                }
+                setCurrentBudget(budgetValue);
               }
             }}
           >

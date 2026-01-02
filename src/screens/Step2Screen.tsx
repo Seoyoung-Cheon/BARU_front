@@ -37,8 +37,9 @@ export default function Step2Screen() {
   const route = useRoute<RouteProp>();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
-  const [budget, setBudget] = useState('');
+  const [budget, setBudget] = useState('나의 예산');
   const [peopleCount, setPeopleCount] = useState('인원 수');
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [departureDate, setDepartureDate] = useState<Date | null>(null);
   const [arrivalDate, setArrivalDate] = useState<Date | null>(null);
   const [showDeparturePicker, setShowDeparturePicker] = useState(false);
@@ -57,11 +58,23 @@ export default function Step2Screen() {
   // 국내: 기차/비행기 선택
   const [transportType, setTransportType] = useState<'train' | 'flight' | null>(null);
   const [departureStation, setDepartureStation] = useState('출발역');
-  const [returnStation, setReturnStation] = useState('복귀역');
+  const [returnStation, setReturnStation] = useState('도착역');
   const [showDepartureStationModal, setShowDepartureStationModal] = useState(false);
   const [showReturnStationModal, setShowReturnStationModal] = useState(false);
 
   const peopleOptions = ['1명', '2명', '3명', '4명', '5명', '6명','7명','8명','9명','10명'];
+  const budgetOptions = [
+    '10-20만원',
+    '20-30만원',
+    '30-40만원',
+    '40-50만원',
+    '50-60만원',
+    '60-70만원',
+    '70-80만원',
+    '80-90만원',
+    '90-100만원',
+    '100만원 이상'
+  ];
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -101,7 +114,7 @@ export default function Step2Screen() {
     // 필수값 검증
     const missingFields: string[] = [];
     
-    if (!budget || budget.trim() === '') {
+    if (!budget || budget === '나의 예산') {
       missingFields.push('나의 예산');
     }
     
@@ -134,7 +147,7 @@ export default function Step2Screen() {
           missingFields.push(transportType === 'train' ? '출발역' : '출발 공항');
         }
         if (returnStation === '귀국역' || returnStation === '귀국 공항') {
-          missingFields.push(transportType === 'train' ? '복귀역' : '귀국 공항');
+          missingFields.push(transportType === 'train' ? '도착역' : '귀국 공항');
         }
       }
     }
@@ -319,24 +332,15 @@ export default function Step2Screen() {
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
         <View style={styles.sectionContainer}>
           <Text style={styles.labelText}>나의 예산</Text>
-          <View style={styles.budgetInputWrapper}>
-            <TextInput
-              style={styles.budgetInput}
-              placeholder="ex)50"
-              placeholderTextColor="#999999"
-              value={budget}
-              onChangeText={(text) => {
-                const numericValue = text.replace(/[^0-9]/g, '');
-                // 4자리까지만 입력 가능
-                if (numericValue.length <= 4) {
-                  setBudget(numericValue);
-                }
-              }}
-              keyboardType="numeric"
-              maxLength={4}
-            />
-            <Text style={styles.currencyText}>만원</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setShowBudgetModal(true)}
+          >
+            <Text style={[styles.dropdownText, budget === '나의 예산' && styles.placeholderText]}>
+              {budget}
+            </Text>
+            <Text style={styles.dropdownIcon}>▼</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.sectionContainer}>
@@ -422,7 +426,7 @@ export default function Step2Screen() {
                   onPress={() => {
                     setTransportType('train');
                     setDepartureStation('출발역');
-                    setReturnStation('복귀역');
+                    setReturnStation('도착역');
                   }}
                 >
                   <Text style={[styles.toggleButtonText, transportType === 'train' && styles.toggleButtonTextActive]}>
@@ -468,7 +472,7 @@ export default function Step2Screen() {
                 <View style={styles.sectionContainer}>
                   <View style={styles.labelRow}>
                     <Text style={styles.labelText}>
-                      {transportType === 'train' ? '복귀역' : '귀국 공항'}
+                      {transportType === 'train' ? '도착역' : '귀국 공항'}
                     </Text>
                     <Text style={styles.helperText}>
                       {transportType === 'train' ? '돌아올 때 도착할 역' : '돌아올 때 도착할 공항'}
@@ -484,7 +488,7 @@ export default function Step2Screen() {
                       }
                     }}
                   >
-                    <Text style={[styles.dropdownText, (returnStation === '복귀역' || returnStation === '귀국 공항') && styles.placeholderText]}>
+                    <Text style={[styles.dropdownText, (returnStation === '도착역' || returnStation === '귀국 공항') && styles.placeholderText]}>
                       {returnStation}
                     </Text>
                     <Text style={styles.dropdownIcon}>▼</Text>
@@ -501,6 +505,34 @@ export default function Step2Screen() {
           <Text style={styles.nextButtonText}>랜덤여행 가기</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={showBudgetModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowBudgetModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowBudgetModal(false)}
+        >
+          <View style={styles.modalContent}>
+            {budgetOptions.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={styles.modalOption}
+                onPress={() => {
+                  setBudget(option);
+                  setShowBudgetModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{option}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         visible={showPeopleModal}
@@ -816,7 +848,7 @@ export default function Step2Screen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* 국내 복귀역 선택 모달 */}
+      {/* 국내 도착역 선택 모달 */}
       <Modal
         visible={showReturnStationModal}
         transparent={true}
