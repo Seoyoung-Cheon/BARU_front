@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
-import { View, Image, StyleSheet, StatusBar, Text, TouchableOpacity, Animated } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Image, StyleSheet, StatusBar, Text, TouchableOpacity, Animated, ActivityIndicator, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
+import { getBoldStyle } from '../utils/fontStyles';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -10,6 +11,7 @@ export default function Step1Screen() {
   const navigation = useNavigation<NavigationProp>();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const [imageLoaded, setImageLoaded] = useState({ domestic: false, abroad: false });
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -92,7 +94,23 @@ export default function Step1Screen() {
             onPress={() => handleSelect(true)}
             activeOpacity={0.8}
           >
-            <Text style={styles.optionButtonText}>국내</Text>
+            {!imageLoaded.domestic && (
+              <View style={styles.imageLoadingContainer}>
+                <ActivityIndicator size="large" color="#D7E3A1" />
+              </View>
+            )}
+            <Image
+              source={require('../../assets/guknae.jpg')}
+              style={styles.optionButtonImage}
+              resizeMode="cover"
+              onLoadStart={() => setImageLoaded(prev => ({ ...prev, domestic: false }))}
+              onLoad={() => setImageLoaded(prev => ({ ...prev, domestic: true }))}
+              onError={() => setImageLoaded(prev => ({ ...prev, domestic: true }))}
+              fadeDuration={200}
+            />
+            <View style={styles.optionButtonOverlay}>
+              <Text style={styles.optionButtonText}>국내</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -100,7 +118,23 @@ export default function Step1Screen() {
             onPress={() => handleSelect(false)}
             activeOpacity={0.8}
           >
-            <Text style={styles.optionButtonText}>해외</Text>
+            {!imageLoaded.abroad && (
+              <View style={styles.imageLoadingContainer}>
+                <ActivityIndicator size="large" color="#D7E3A1" />
+              </View>
+            )}
+            <Image
+              source={require('../../assets/abroad (3).jpg')}
+              style={styles.optionButtonImage}
+              resizeMode="cover"
+              onLoadStart={() => setImageLoaded(prev => ({ ...prev, abroad: false }))}
+              onLoad={() => setImageLoaded(prev => ({ ...prev, abroad: true }))}
+              onError={() => setImageLoaded(prev => ({ ...prev, abroad: true }))}
+              fadeDuration={200}
+            />
+            <View style={styles.optionButtonOverlay}>
+              <Text style={styles.optionButtonText}>해외</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -170,23 +204,25 @@ const styles = StyleSheet.create({
     color: '#000000',
     textAlign: 'center',
     marginBottom: 40,
+    top: 30,
   },
   buttonContainer: {
     width: '100%',
-    maxWidth: 400,
     flexDirection: 'row',
-    gap: 20,
+    gap: 10,
     justifyContent: 'center',
+    alignItems: 'center',
+    top: 50,
+    
   },
   optionButton: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    width: 150,
-    height: 150,
+    width: 180,
+    height: 180,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -195,12 +231,39 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    position: 'relative',
+  },
+  optionButtonImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  imageLoadingContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  optionButtonOverlay: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    zIndex: 2,
   },
   optionButtonText: {
-    color: '#333333',
-    fontSize: 20,
+    color: '#ffffff',
+    fontSize: 22,
     fontFamily: 'Juache',
-    fontWeight: 'bold',
+    ...getBoldStyle('Juache'),
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
 

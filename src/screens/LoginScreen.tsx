@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
-import { View, Image, StyleSheet, StatusBar, Text, TouchableOpacity, Animated, TextInput } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Image, StyleSheet, StatusBar, Text, TouchableOpacity, Animated } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { getFontWeight } from '../utils/fontStyles';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type LoginScreenRouteProp = {
@@ -29,8 +30,6 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -66,20 +65,20 @@ export default function LoginScreen() {
     ]).start();
   };
 
-  const handleLogin = () => {
-    // TODO: 실제 로그인 API 호출
+  const handleSocialLogin = (provider: 'kakao' | 'google') => {
+    // TODO: 카카오톡/구글 로그인 API 연동
+    console.log(`${provider} 로그인 시도`);
+    
     // 임시로 로그인 성공 처리
-    if (email && password) {
-      login(); // 로그인 상태 저장
-      
-      // Detail로 리다이렉트해야 하는 경우
-      if (route.params?.redirectTo === 'Detail' && route.params?.detailParams) {
-        // Login 화면을 스택에서 제거하고 Detail로 이동
-        // 이렇게 하면 Detail에서 뒤로가기를 누를 때 Result 화면으로 돌아감
-        navigation.replace('Detail', route.params.detailParams);
-      } else {
-        navigation.navigate('Home');
-      }
+    login(); // 로그인 상태 저장
+    
+    // Detail로 리다이렉트해야 하는 경우
+    if (route.params?.redirectTo === 'Detail' && route.params?.detailParams) {
+      // Login 화면을 스택에서 제거하고 Detail로 이동
+      // 이렇게 하면 Detail에서 뒤로가기를 누를 때 Result 화면으로 돌아감
+      navigation.replace('Detail', route.params.detailParams);
+    } else {
+      navigation.navigate('Home');
     }
   };
 
@@ -119,38 +118,31 @@ export default function LoginScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>로그인</Text>
         
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>이메일</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="이메일을 입력하세요"
-            placeholderTextColor="#999999"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
+        <View style={styles.socialLoginContainer}>
+          <TouchableOpacity
+            style={styles.socialButton}
+            onPress={() => handleSocialLogin('kakao')}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={require('../../assets/kakaotalk (2).png')}
+              style={styles.socialButtonImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>비밀번호</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="비밀번호를 입력하세요"
-            placeholderTextColor="#999999"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <TouchableOpacity
+            style={styles.socialButton}
+            onPress={() => handleSocialLogin('google')}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={require('../../assets/Google (2).png')}
+              style={styles.socialButtonImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          style={styles.loginButton}
-          onPress={handleLogin}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.loginButtonText}>로그인</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -214,39 +206,27 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'Juache',
     color: '#000000',
-    fontWeight: 'bold',
-    marginBottom: 32,
+    ...getFontWeight('600'),
+    marginBottom: 40,
     textAlign: 'center',
+    top: 50,
   },
-  inputContainer: {
-    marginBottom: 24,
+  socialLoginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 50,
+    marginTop: 50,
   },
-  label: {
-    fontSize: 16,
-    fontFamily: 'Juache',
-    color: '#333333',
-    marginBottom: 8,
-  },
-  input: {
-    width: '100%',
-    height: 50,
+  socialButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    fontFamily: 'Juache',
-    color: '#000000',
     backgroundColor: '#ffffff',
-  },
-  loginButton: {
-    backgroundColor: '#D7E3A1',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    width: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -256,11 +236,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  loginButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontFamily: 'Juache',
-    fontWeight: 'bold',
+  socialButtonImage: {
+    width: 50,
+    height: 50,
   },
 });
 

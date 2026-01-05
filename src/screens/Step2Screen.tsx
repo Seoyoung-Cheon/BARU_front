@@ -1406,11 +1406,11 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    bottom: 3,
+    top: -1,
   },
   tooltip: {
     position: 'absolute',

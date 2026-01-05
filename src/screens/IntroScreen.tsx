@@ -41,7 +41,7 @@ export default function IntroScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#D8E9A5',
+    backgroundColor: '#D7E3A1',
     justifyContent: 'center',
     alignItems: 'center',
   },

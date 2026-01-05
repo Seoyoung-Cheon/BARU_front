@@ -6,6 +6,7 @@ import type { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import Svg, { Path } from 'react-native-svg';
+import { getBoldStyle, getFontWeight } from '../utils/fontStyles';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -125,14 +126,16 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <VideoView
-        player={player}
-        style={styles.video}
-        contentFit="cover"
-        nativeControls={false}
-        allowsPictureInPicture={false}
-      />
-      <View style={styles.logoContainer}>
+      <View style={styles.videoContainer} pointerEvents="none">
+        <VideoView
+          player={player}
+          style={styles.video}
+          contentFit="cover"
+          nativeControls={false}
+          allowsPictureInPicture={false}
+        />
+      </View>
+      <View style={styles.logoContainer} pointerEvents="box-none">
         <Image
           source={require('../../assets/logo.png')}
           style={styles.logo}
@@ -142,11 +145,12 @@ export default function HomeScreen() {
           style={styles.myIconButton}
           onPress={handleMyPagePress}
           activeOpacity={0.8}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text style={styles.myIconText}>{isLoggedIn ? 'My' : '로그인'}</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.centerTextContainer}>
+      <View style={styles.centerTextContainer} pointerEvents="box-none">
         <Animated.View
           style={[
             {
@@ -154,24 +158,20 @@ export default function HomeScreen() {
               transform: [{ translateY: translateYAnim }],
             },
           ]}
+          pointerEvents="none"
         >
           <Animated.Text 
-            style={[
-              styles.centerText,
-              Platform.select({
-                ios: { fontFamily: 'Hakgyoansim' },
-                android: { fontFamily: 'Hakgyoansim' },
-              })
-            ]}
+            style={styles.centerText}
           >
             예산에 맞춰 떠나는 여행, BARU
           </Animated.Text>
         </Animated.View>
       </View>
-      <View style={styles.buttonContainer}>
+      <View style={styles.buttonContainer} pointerEvents="box-none">
         <TouchableOpacity 
           style={styles.button}
           onPress={handlePress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <View style={styles.buttonContent}>
             <Text style={styles.buttonText}>BARU 가기</Text>
@@ -198,12 +198,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  video: {
+  videoContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  video: {
     width: '100%',
     height: '100%',
   },
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingTop: 10,
     position: 'relative',
-    zIndex: 1,
+    zIndex: 10,
   },
   logo: {
     width: 500,
@@ -239,12 +243,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+    zIndex: 11,
   },
   myIconText: {
     fontSize: 14,
     fontFamily: 'Juache',
     color: '#333333',
-    fontWeight: 'bold',
+    ...getBoldStyle('Juache'),
   },
   buttonContainer: {
     position: 'absolute',
@@ -254,7 +259,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
     alignItems: 'center',
-    zIndex: 1,
+    zIndex: 10,
   },
   button: {
     backgroundColor: '#D7E3A1',
@@ -287,7 +292,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontFamily: 'Juache',
-    fontWeight: '600',
+    ...getFontWeight('600'),
     letterSpacing: 0.5,
   },
   centerTextContainer: {
@@ -298,7 +303,7 @@ const styles = StyleSheet.create({
     bottom: 350,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
+    zIndex: 10,
   },
  
   centerText: {
@@ -307,7 +312,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'android' && { includeFontPadding: false }),
     color: '#ffffff',
     textAlign: 'center',
-    fontWeight: 'bold',
+    ...getBoldStyle('Hakgyoansim'),
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
