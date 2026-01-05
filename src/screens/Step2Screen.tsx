@@ -3,6 +3,7 @@ import { View, Image, StyleSheet, StatusBar, Text, TouchableOpacity, Animated, T
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
+import Svg, { Path } from 'react-native-svg';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProp = {
@@ -37,6 +38,10 @@ export default function Step2Screen() {
   const route = useRoute<RouteProp>();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const iconRotateAnim = useRef(new Animated.Value(0)).current;
+  const iconScaleAnim = useRef(new Animated.Value(1)).current;
+  const tooltipOpacity = useRef(new Animated.Value(0)).current;
+  const tooltipTranslateX = useRef(new Animated.Value(-10)).current;
   const [budget, setBudget] = useState('나의 예산');
   const [peopleCount, setPeopleCount] = useState('인원 수');
   const [showBudgetModal, setShowBudgetModal] = useState(false);
@@ -61,6 +66,80 @@ export default function Step2Screen() {
   const [returnStation, setReturnStation] = useState('도착역');
   const [showDepartureStationModal, setShowDepartureStationModal] = useState(false);
   const [showReturnStationModal, setShowReturnStationModal] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  const handleTooltipPress = () => {
+    if (showTooltip) {
+      // 툴팁 숨기기
+      Animated.parallel([
+        Animated.timing(tooltipOpacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(tooltipTranslateX, {
+          toValue: -10,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.parallel([
+          Animated.timing(iconRotateAnim, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(iconScaleAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(() => {
+        setShowTooltip(false);
+      });
+    } else {
+      // 툴팁 표시
+      setShowTooltip(true);
+      Animated.parallel([
+        Animated.parallel([
+          Animated.timing(iconRotateAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(iconScaleAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(tooltipOpacity, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(tooltipTranslateX, {
+              toValue: 30,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.timing(tooltipTranslateX, {
+              toValue: 15,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.timing(tooltipTranslateX, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+      ]).start();
+    }
+  };
 
   const peopleOptions = ['1명', '2명', '3명', '4명', '5명', '6명','7명','8명','9명','10명'];
   const budgetOptions = [
@@ -331,7 +410,53 @@ export default function Step2Screen() {
       </View>
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
         <View style={styles.sectionContainer}>
-          <Text style={styles.labelText}>나의 예산</Text>
+          <View style={styles.labelWithTooltip}>
+            <Text style={styles.labelText}>나의 예산</Text>
+            <View style={styles.tooltipContainer}>
+              <TouchableOpacity
+                style={styles.icon}
+                onPress={handleTooltipPress}
+                activeOpacity={0.7}
+              >
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        rotate: iconRotateAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg'],
+                        }),
+                      },
+                      { scale: iconScaleAnim },
+                    ],
+                  }}
+                >
+                  <Svg width={20} height={20} viewBox="0 0 24 24">
+                    <Path
+                      d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.518 0-10-4.482-10-10s4.482-10 10-10 10 4.482 10 10-4.482 10-10 10zm-1-16h2v6h-2zm0 8h2v2h-2z"
+                      fill="#000000"
+                    />
+                  </Svg>
+                </Animated.View>
+              </TouchableOpacity>
+              {showTooltip && (
+                <Animated.View
+                  style={[
+                    styles.tooltip,
+                    {
+                      opacity: tooltipOpacity,
+                      transform: [{ translateX: tooltipTranslateX }],
+                    },
+                  ]}
+                >
+                  <Text style={styles.tooltipText}>
+                    다수의 인원인 경우 총 예산을 기준으로 선택해주세요
+                  </Text>
+                  <View style={styles.tooltipArrow} />
+                </Animated.View>
+              )}
+            </View>
+          </View>
           <TouchableOpacity
             style={styles.dropdownButton}
             onPress={() => setShowBudgetModal(true)}
@@ -876,6 +1001,7 @@ export default function Step2Screen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
     </View>
   );
 }
@@ -1269,6 +1395,52 @@ const styles = StyleSheet.create({
   toggleButtonTextActive: {
     color: '#000000',
     fontWeight: 'bold',
+  },
+  labelWithTooltip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tooltipContainer: {
+    position: 'relative',
+    marginLeft: 8,
+  },
+  icon: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    bottom: 3,
+  },
+  tooltip: {
+    position: 'absolute',
+    top: -5,
+    left: 30,
+    width: 200,
+    backgroundColor: '#333',
+    borderRadius: 5,
+    padding: 10,
+    zIndex: 1000,
+  },
+  tooltipText: {
+    fontSize: 12,
+    fontFamily: 'Juache',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    left: -5,
+    top: '50%',
+    marginTop: -5,
+    width: 0,
+    height: 0,
+    borderTopWidth: 5,
+    borderBottomWidth: 5,
+    borderRightWidth: 5,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: '#333',
   },
 });
 
