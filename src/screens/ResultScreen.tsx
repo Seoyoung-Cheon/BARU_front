@@ -104,6 +104,29 @@ export default function ResultScreen() {
     departureDate?: Date;
     arrivalDate?: Date;
   } | null>(null);
+  
+  // 여행에 필요한 물건 목록
+  const travelItems = [
+    '여권',
+    '여행가방',
+    '여행용 어댑터',
+    '선크림',
+    '카메라',
+    '여행용 베개',
+    '여행용 슬리퍼',
+    '여행용 수건',
+    '여행용 세면도구',
+    '여행용 충전기',
+    '여행용 우산',
+    '여행용 약',
+    '여행용 돈',
+    '여행용 옷',
+    '여행용 신발',
+    '여벌옷',
+    '보조배터리',
+
+  ];
+  const [currentTravelItemIndex, setCurrentTravelItemIndex] = useState(0);
 
   useEffect(() => {
     if (activeTab === 'flights') {
@@ -112,6 +135,17 @@ export default function ResultScreen() {
       fetchTravelList();
     }
   }, [currentBudget, activeTab]); // budgetInput 대신 currentBudget 사용
+
+  // 로딩 중 여행 물건 메시지 전환
+  useEffect(() => {
+    if (!loading) return;
+    
+    const interval = setInterval(() => {
+      setCurrentTravelItemIndex((prev) => (prev + 1) % travelItems.length);
+    }, 2000); // 2초마다 전환
+    
+    return () => clearInterval(interval);
+  }, [loading, travelItems.length]);
 
   // 시간 문자열을 분 단위로 변환하는 함수
   const parseTimeToMinutes = (timeStr: string): number => {
@@ -311,10 +345,6 @@ export default function ResultScreen() {
       // 필터링 시 사용할 최소/최대 예산 (원 단위)
       const budgetMinWon = budgetRange.min * 10000;
       const budgetMaxWon = budgetRange.max === Infinity ? Infinity : budgetRange.max * 10000;
-      
-      // 인원수 기반 1인당 예산 범위 계산 (필터링에 사용)
-      const budgetMinPerPerson = Math.floor(budgetMinWon / people);
-      const budgetMaxPerPerson = budgetMaxWon === Infinity ? Infinity : Math.floor(budgetMaxWon / people);
 
       // 공항 코드 추출
       const departureAirportCode = extractAirportCode(departureAirport);
@@ -340,7 +370,6 @@ export default function ResultScreen() {
       console.log('예산 (최소값):', budgetMinWon.toLocaleString(), '원');
       console.log('예산 (최대값):', budgetMaxWon === Infinity ? '무제한' : budgetMaxWon.toLocaleString() + '원');
       console.log('인원수:', people, '명');
-      console.log('1인당 예산 범위:', `${budgetMinPerPerson.toLocaleString()}원 ~ ${budgetMaxPerPerson === Infinity ? '∞' : budgetMaxPerPerson.toLocaleString()}원`);
       console.log('출발 공항 코드:', departureAirportCode);
       console.log('귀국 공항 코드:', returnAirportCode);
       const response = await searchTrip(searchParams);
@@ -476,33 +505,9 @@ export default function ResultScreen() {
           price: f.price.total,
         })));
 
-        // 인원수 기반 가격 필터링
-        // 예산 범위를 고려하여 필터링
-        // 백엔드에서 priceWon은 1인당 가격으로 반환되므로, 1인당 가격이 예산 범위 내에 있어야 함
-        // budgetMinPerPerson과 budgetMaxPerPerson은 이미 위에서 계산됨
-        
-        console.log(`필터링 조건: 예산 범위 ${budgetRange.min}-${budgetRange.max === Infinity ? '∞' : budgetRange.max}만원, 인원 ${people}명`);
-        console.log(`1인당 예산 범위: ${budgetMinPerPerson.toLocaleString()}원 ~ ${budgetMaxPerPerson === Infinity ? '∞' : budgetMaxPerPerson.toLocaleString()}원`);
-        
-        const budgetFilteredFlights = allFlights.filter((flight) => {
-          const pricePerPerson = parseFloat(flight.price.total) || 0;
-          const isWithinBudget = pricePerPerson >= budgetMinPerPerson && 
-                                 (budgetMaxPerPerson === Infinity || pricePerPerson <= budgetMaxPerPerson);
-          
-          if (!isWithinBudget) {
-            console.log(`❌ 필터링됨: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원 (범위: ${budgetMinPerPerson.toLocaleString()}원 ~ ${budgetMaxPerPerson === Infinity ? '∞' : budgetMaxPerPerson.toLocaleString()}원)`);
-          } else {
-            console.log(`✅ 통과: ${flight.departure.airport} -> ${flight.arrival.airport}, 1인당: ${pricePerPerson.toLocaleString()}원`);
-          }
-          
-          return isWithinBudget;
-        });
-        
-        console.log(`인원수 기반 필터링 결과: 전체 ${allFlights.length}개 -> 예산 내 ${budgetFilteredFlights.length}개`);
-        
         // 완전히 동일한 항공권만 제거
         // (편명, 출발/도착 공항, 출발 시간, 가격이 모두 동일한 경우만)
-        const uniqueFlights = budgetFilteredFlights.filter((flight, index, self) => {
+        const uniqueFlights = allFlights.filter((flight, index, self) => {
           const uniqueKey = `${flight.airline}-${flight.departure.airport}-${flight.arrival.airport}-${flight.departure.time}-${flight.price.total}-${flight.segments[0]?.flightNumber || ''}`;
           return index === self.findIndex(f => {
             const fKey = `${f.airline}-${f.departure.airport}-${f.arrival.airport}-${f.departure.time}-${f.price.total}-${f.segments[0]?.flightNumber || ''}`;
@@ -989,7 +994,7 @@ export default function ResultScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#D7E3A1" />
             <Text style={styles.loadingText}>
-              {activeTab === 'flights' ? '항공권을 불러오는 중...' : '여행지를 불러오는 중...'}
+              여행에 필요한 물건: {travelItems[currentTravelItemIndex]}
             </Text>
           </View>
         ) : (
@@ -1420,6 +1425,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
+    top: 100,
   },
   loadingText: {
     fontSize: 16,
@@ -1643,6 +1649,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Juache',
     color: '#666666',
+    top: 100,
   },
   loginRequiredModalContent: {
     backgroundColor: '#ffffff',
